@@ -86,6 +86,8 @@ When a card is in use, its row shows how many sessions are on it. Press 重新�
 
 A card is one `.dshcd` file. Export it, send it to a friend, import it back. Fields this build does not know are preserved. Cards exported from the original character-cards plugin import unchanged.
 
+**导出全部** downloads every card as one `facet-cards-backup-*.json` collection; the 导入 button accepts both single `.dshcd` files and that backup. On conflict the incoming card is imported under a fresh id instead of overwriting. Note that card images are referenced by local path, so a backup restores the paths — copy the image files themselves when moving to another machine.
+
 ## Known limitations
 
 - **Roleplay presets already carry a complete persona.** If a preset is already playing a character, use one or the other; stacking a card on top can produce two competing identities.
@@ -99,4 +101,5 @@ dsh-facet-cards is an independent continuation of [sildo466/dsh-character-cards]
 
 ## Changelog
 
+- **1.1.0** — whole-library backup: 导出全部 downloads all cards as one JSON collection, and the import button now detects and restores that collection (with per-card conflict renaming and a summary), alongside the existing single-`.dshcd` import.
 - **1.0.0** — first release under the independent dsh-facet-cards identity: usage counters with sorting, card categories, per-card local images, and a dock-style composer picker.
