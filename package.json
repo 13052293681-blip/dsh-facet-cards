@@ -1,6 +1,6 @@
 {
   "name": "dsh-facet-cards",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Facet cards (persona cards) for DSH sessions - per-session persona, tone, and code style with usage counters, categories, per-card local images, and a dock-style composer picker. Independent continuation of dsh-character-cards.",
   "author": "13052293681-blip",
   "repository": {
