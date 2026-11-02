@@ -1,0 +1,7 @@
+# dsh-facet-cards bundle patch: inserts the plugin row into the profile
+# roster. The node half serves the /dsh-facet-cards/* JSON routes; the
+# browser half (exports "./client") contributes the card surfaces.
+# name 必须指向真实可解析的包名（dsh-facet-cards 为独立包名，与上游 dsh-character-cards 完全分离）。
+- insert:
+    - id: dsh-facet-cards
+      name: 'dsh-facet-cards'

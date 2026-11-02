@@ -1,0 +1,60 @@
+{
+  "name": "dsh-facet-cards",
+  "version": "1.0.0",
+  "description": "Facet cards (persona cards) for DSH sessions - per-session persona, tone, and code style with usage counters, categories, per-card local images, and a dock-style composer picker. Independent continuation of dsh-character-cards.",
+  "author": "13052293681-blip",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/13052293681-blip/dsh-facet-cards.git"
+  },
+  "homepage": "https://github.com/13052293681-blip/dsh-facet-cards#readme",
+  "bugs": {
+    "url": "https://github.com/13052293681-blip/dsh-facet-cards/issues"
+  },
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node --test"
+  },
+  "exports": {
+    ".": "./src/index.js",
+    "./client": "./src/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "cordis.patch.yml"
+  ],
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "persona",
+    "facet-card"
+  ],
+  "license": "MIT",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dsh": {
+    "engines": {
+      "dsh": ">=0.2.0-rc.2"
+    },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-primitives"
+      ],
+      "platform": "web"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh": ">=0.2.0-rc.2"
+  }
+}
