@@ -1037,6 +1037,51 @@ window.__ModuleLoader__.load({
         }
       }
 
+      // Whole-library backup: fetch every card and emit one self-contained
+      // JSON collection. The card objects carry image references as local
+      // paths, so the backup is portable wherever those paths still resolve.
+      const exportAll = async () => {
+        if (state.cards.length === 0) {
+          showNotice('error', '没有可导出的卡片。')
+          return
+        }
+        const cards = []
+        let failed = 0
+        for (const entry of state.cards) {
+          const payload = await getJson(`/cards/${encodeURIComponent(entry.id)}`)
+          if (payload?.card === undefined) { failed += 1; continue }
+          cards.push(payload.card)
+        }
+        if (cards.length === 0) {
+          showNotice('error', '导出失败：无法读取任何卡片。')
+          return
+        }
+        const backup = {
+          kind: 'dshfc-backup',
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          count: cards.length,
+          cards,
+        }
+        try {
+          const blob = new Blob([`${JSON.stringify(backup, null, 2)}\n`], { type: 'application/json' })
+          const url = URL.createObjectURL(blob)
+          const anchor = document.createElement('a')
+          anchor.href = url
+          anchor.download = `facet-cards-backup-${new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19)}.json`
+          document.body.appendChild(anchor)
+          anchor.click()
+          anchor.remove()
+          setTimeout(() => URL.revokeObjectURL(url), 60_000)
+          showNotice(failed > 0 ? 'error' : 'info',
+            failed > 0
+              ? `已导出 ${cards.length} 张卡；${failed} 张读取失败未包含。`
+              : `已导出 ${cards.length} 张卡`)
+        } catch {
+          showNotice('error', '导出失败：浏览器拒绝下载。')
+        }
+      }
+
       const copyCard = async (entry) => {
         setMenuFor(null)
         const payload = await getJson(`/cards/${encodeURIComponent(entry.id)}`)
@@ -1060,13 +1105,28 @@ window.__ModuleLoader__.load({
         showNotice('info', `已复制为 ${copy.id}`)
       }
 
+      // Create one card from parsed JSON, retrying with a fresh id when the
+      // server reports a collision. Shared by the single-card and the backup
+      // import paths so both get the same rename-on-conflict behaviour.
+      const importOne = async (parsed, ids) => {
+        let prepared = prepareImport(parsed, ids)
+        let answer = await postJson('/cards', { card: prepared.card })
+        if (answer?.code === 'exists') {
+          prepared = prepareImport(parsed, [...ids, prepared.card.id])
+          answer = await postJson('/cards', { card: prepared.card })
+        }
+        return { prepared, answer }
+      }
+
       const importFile = async (event) => {
         const input = event.target
         const file = input.files?.[0]
         input.value = ''
         if (file === undefined) return
-        if (file.size > 1_000_000) {
-          showNotice('error', '导入失败：文件超过 1 MB。')
+        // Whole-library backups are usually tiny; the 8 MB ceiling only exists
+        // so a corrupted choice cannot stall the panel.
+        if (file.size > 8_000_000) {
+          showNotice('error', '导入失败：文件超过 8 MB。')
           return
         }
         let parsed
@@ -1076,16 +1136,48 @@ window.__ModuleLoader__.load({
           showNotice('error', '导入失败：不是合法的 JSON。')
           return
         }
+        // A backup from 导出全部: { kind: 'dshfc-backup', cards: [...] }.
+        if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)
+          && parsed.kind === 'dshfc-backup' && Array.isArray(parsed.cards)) {
+          if (parsed.cards.length === 0) {
+            showNotice('error', '导入失败：备份里没有卡片。')
+            return
+          }
+          const knownIds = [...ids]
+          let imported = 0
+          let renamed = 0
+          const failures = []
+          for (const raw of parsed.cards) {
+            if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+              failures.push('(格式错误)')
+              continue
+            }
+            const originalId = typeof raw.id === 'string' ? raw.id : ''
+            const { prepared, answer } = await importOne(raw, knownIds)
+            if (answer === undefined || answer.ok !== true) {
+              failures.push(originalId !== '' ? originalId : '(未知卡)')
+              continue
+            }
+            if (originalId !== '' && prepared.card.id !== originalId) renamed += 1
+            knownIds.push(prepared.card.id)
+            imported += 1
+          }
+          void reload()
+          showNotice(failures.length > 0 ? 'error' : 'info',
+            failures.length > 0
+              ? `已导入 ${imported} 张，重命名 ${renamed} 张，失败 ${failures.length} 张（${failures.slice(0, 3).join('、')}${failures.length > 3 ? ' 等' : ''}）。`
+              : `已导入 ${imported} 张${renamed > 0 ? `，重命名 ${renamed} 张` : ''}`)
+          return
+        }
         if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
           showNotice('error', '导入失败：卡片必须是 JSON 对象。')
           return
         }
-        let prepared = prepareImport(parsed, ids)
-        let answer = await postJson('/cards', { card: prepared.card })
-        if (answer?.code === 'exists') {
-          prepared = prepareImport(parsed, [...ids, prepared.card.id])
-          answer = await postJson('/cards', { card: prepared.card })
+        if (file.size > 1_000_000) {
+          showNotice('error', '导入失败：文件超过 1 MB。')
+          return
         }
+        const { prepared, answer } = await importOne(parsed, ids)
         if (answer === undefined || answer.ok !== true) {
           showNotice('error', answer?.error ?? '导入失败')
           return
@@ -1279,6 +1371,10 @@ window.__ModuleLoader__.load({
               }, defaultName),
             }),
             react.createElement('span', { className: 'dshfc-spacer' }),
+            react.createElement(Button, {
+              variant: 'outline',
+              onClick: () => { void exportAll() },
+            }, '导出全部'),
             react.createElement(Button, {
               variant: 'outline',
               onClick: () => fileInput.current?.click(),
